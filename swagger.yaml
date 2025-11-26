@@ -10,6 +10,8 @@ info:
     * **Anchor Time**: Reference time of the forecast model run.
     * **Lead Hour**: Hours into the future relative to Anchor Time.
   version: 1.0.0
+security:
+  - ApiKeyAuth: []
 servers:
   - url: https://deepmet.fyllo.in
     description: DeepMet by Fyllo
@@ -79,6 +81,11 @@ paths:
                 $ref: '#/components/schemas/DeepMetResponse'
 
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
   schemas:
     DeepMetResponse:
       type: object
