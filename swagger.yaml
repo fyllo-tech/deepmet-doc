@@ -80,12 +80,94 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeepMetResponse'
 
+  /nowcast/route:
+    post:
+      summary: Get rainfall forecast along a travel route
+      description: |
+        Returns time-filtered forecasts for a route with multiple waypoints.
+        Provides segment-by-segment forecasts based on arrival times.
+        
+        **Time Modes:**
+        * **Explicit Arrival Times**: Each waypoint includes `arrivalTime`
+        * **Speed-Based**: Provide `averageSpeed` and `departureTime` to calculate arrival times
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - waypoints
+              properties:
+                waypoints:
+                  type: array
+                  minItems: 2
+                  maxItems: 50
+                  items:
+                    type: object
+                    required:
+                      - latitude
+                      - longitude
+                    properties:
+                      latitude:
+                        type: number
+                        format: float
+                        example: 16.37481
+                      longitude:
+                        type: number
+                        format: float
+                        example: 73.38659
+                      arrivalTime:
+                        type: string
+                        format: date-time
+                        description: ISO 8601 timestamp for explicit time mode
+                        example: "2025-12-22T10:30:00.000Z"
+                radius:
+                  type: number
+                  default: 20
+                  minimum: 10
+                  maximum: 50
+                  description: Corridor radius in kilometers
+                averageSpeed:
+                  type: number
+                  minimum: 1
+                  maximum: 200
+                  description: Average speed in km/h (required for speed-based mode)
+                  example: 60
+                departureTime:
+                  type: string
+                  format: date-time
+                  description: Departure time (required for speed-based mode)
+                  example: "2025-12-22T08:30:00.000Z"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+        '400':
+          description: Bad request (e.g., route > 500km, invalid parameters)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                      statusCode:
+                        type: integer
+
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: x-api-key
+      
   schemas:
     DeepMetResponse:
       type: object
@@ -99,6 +181,29 @@ components:
           properties:
             precipitation:
               $ref: '#/components/schemas/PrecipitationData'
+
+    RouteResponse:
+      type: object
+      properties:
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+        location:
+          $ref: '#/components/schemas/RouteLocation'
+        data:
+          type: object
+          properties:
+            precipitation:
+              $ref: '#/components/schemas/PrecipitationData'
+        segments:
+          type: array
+          description: Segment-by-segment forecasts with time-filtered precipitation
+          items:
+            $ref: '#/components/schemas/RouteSegment'
+        alerts:
+          type: array
+          description: Weather alerts for heavy rain along the route
+          items:
+            $ref: '#/components/schemas/RouteAlert'
 
     Metadata:
       type: object
@@ -130,6 +235,118 @@ components:
         radius_km:
           type: number
           description: Only present for type='area'
+
+    RouteLocation:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [route]
+          example: "route"
+        waypoints:
+          type: array
+          items:
+            type: object
+            properties:
+              latitude:
+                type: number
+              longitude:
+                type: number
+              arrivalTime:
+                type: string
+                format: date-time
+        radius_km:
+          type: number
+          description: Corridor radius
+        total_distance_km:
+          type: number
+          example: 136.1
+        corridor_grid_points:
+          type: integer
+          description: Number of grid points within route corridor
+        departure_time:
+          type: string
+          format: date-time
+        estimated_arrival:
+          type: string
+          format: date-time
+        average_speed_kmh:
+          type: number
+
+    RouteSegment:
+      type: object
+      properties:
+        from:
+          type: object
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+        to:
+          type: object
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+        distance_km:
+          type: number
+          example: 8.5
+        departure_time:
+          type: string
+          format: date-time
+        arrival_time:
+          type: string
+          format: date-time
+        forecast_at_arrival:
+          $ref: '#/components/schemas/ForecastAtArrival'
+
+    ForecastAtArrival:
+      type: object
+      properties:
+        precipitation_mm:
+          type: number
+          description: Max precipitation from relevant forecast hours
+          example: 2.5
+        conditions:
+          type: string
+          enum: [Clear, Light rain, Moderate rain, Heavy rain]
+          example: "Light rain"
+        relevant_hours:
+          type: array
+          items:
+            type: integer
+          description: Forecast hours used (1-6)
+          example: [2, 3]
+        arrival_hour:
+          type: number
+          format: float
+          description: Hours from anchor time
+          example: 2.15
+
+    RouteAlert:
+      type: object
+      properties:
+        type:
+          type: string
+          example: "heavy_rain"
+        severity:
+          type: string
+          enum: [moderate, high]
+        location:
+          type: object
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+        eta:
+          type: string
+          format: date-time
+        message:
+          type: string
+          example: "Heavy rain expected (12.5mm) when you reach this location around 14:30"
 
     PrecipitationData:
       type: object
@@ -186,6 +403,10 @@ components:
         distribution:
           type: string
           enum: [localized, widespread, uniform]
+          description: |
+            Coverage-based distribution:
+            * localized: < 30% of search area has rain
+            * widespread: ≥ 30% of search area has rain
 
     TemporalInsights:
       type: object
