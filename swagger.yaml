@@ -329,12 +329,27 @@ components:
       type: object
       description: |
         One calendar day's forecast. Field set mirrors Fyllo's internal
-        weather service and can vary slightly by location/source coverage.
+        weather service and can vary slightly by location/source coverage —
+        airPressure, baroPressure, iconPhrase, precipitationType and
+        precipitationIntensity are only present when the underlying source
+        (e.g. accuweather, climacell) provides them for that day. Every
+        field's `sourceId` (source-provenance tag) is stripped from this
+        response.
       properties:
+        id:
+          type: string
+          example: "6a6b53161dba8506e8bc30e1"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-07-30T13:35:18.984Z"
         timestamp:
           type: string
           format: date-time
           example: "2026-07-31T00:00:00.000Z"
+        locationId:
+          type: string
+          example: "6a6b2fd71dba85590abc1910"
         airTemp:
           type: object
           properties:
@@ -344,27 +359,136 @@ components:
                 value:
                   type: number
                   example: 24.1
+                unit:
+                  type: string
+                  example: "℃"
             max:
               type: object
               properties:
                 value:
                   type: number
                   example: 33.4
+                unit:
+                  type: string
+                  example: "℃"
+            avg:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 28.7
+                unit:
+                  type: string
+                  example: "℃"
         airHumidity:
           type: object
+          description: Daily records only carry `avg` (no min/max).
+          properties:
+            avg:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 78
+                unit:
+                  type: string
+                  example: "%"
+        airPressure:
+          type: object
+          description: Only present when the source reports it for that day.
           properties:
             min:
               type: object
               properties:
                 value:
                   type: number
-                  example: 58
+                  example: 964.21
+                timestamp:
+                  type: string
+                  format: date-time
+                unit:
+                  type: string
+                  example: "hPa"
             max:
               type: object
               properties:
                 value:
                   type: number
-                  example: 87
+                  example: 968.16
+                timestamp:
+                  type: string
+                  format: date-time
+                unit:
+                  type: string
+                  example: "hPa"
+            avg:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 966.13
+                unit:
+                  type: string
+                  example: "hPa"
+        baroPressure:
+          type: object
+          description: Same shape as airPressure; only present when the source reports it.
+          properties:
+            min:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 1000.19
+                timestamp:
+                  type: string
+                  format: date-time
+                unit:
+                  type: string
+                  example: "hPa"
+            max:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 1004.41
+                timestamp:
+                  type: string
+                  format: date-time
+                unit:
+                  type: string
+                  example: "hPa"
+            avg:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 1002.26
+                unit:
+                  type: string
+                  example: "hPa"
+        windSpeed:
+          type: object
+          properties:
+            max:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 20.1
+                unit:
+                  type: string
+                  example: "km/hr"
+        windDirection:
+          type: object
+          properties:
+            avg:
+              type: object
+              properties:
+                value:
+                  type: string
+                  description: Compass direction
+                  example: "ENE"
         rainFall:
           type: object
           properties:
@@ -372,6 +496,78 @@ components:
               type: number
               description: Forecast rainfall in mm
               example: 12.4
+            unit:
+              type: string
+              example: "mm"
+        dayLength:
+          type: object
+          properties:
+            value:
+              type: number
+              description: Length of daylight, in seconds (not hours)
+              example: 47875.99
+            unit:
+              type: string
+              example: "seconds"
+        sunshineHours:
+          type: object
+          properties:
+            value:
+              type: number
+              description: Hours of sunshine
+              example: 11.34
+            unit:
+              type: string
+              example: "hours"
+        weatherIcon:
+          type: object
+          properties:
+            value:
+              type: string
+              example: "Thunderstorm"
+            displayValue:
+              type: string
+              description: Localized label (translated per the `lang` you send)
+              example: "Thunderstorm"
+        iconPhrase:
+          type: object
+          description: AccuWeather-sourced phrase; only present when that source is available.
+          properties:
+            value:
+              type: string
+              example: "Showers"
+        hasPrecipitation:
+          type: object
+          properties:
+            value:
+              type: boolean
+              example: true
+        precipitationType:
+          type: object
+          description: Only present when the source (typically climacell) reports it.
+          properties:
+            value:
+              type: string
+              example: "Rain"
+        precipitationIntensity:
+          type: object
+          description: Only present when the source (typically climacell) reports it.
+          properties:
+            value:
+              type: number
+              example: 0.47
+            unit:
+              type: string
+              example: "mm"
+        precipitationAccumulation:
+          type: object
+          properties:
+            value:
+              type: number
+              example: 2.4
+            unit:
+              type: string
+              example: "mm"
         precipitationProbability:
           type: object
           properties:
@@ -379,71 +575,162 @@ components:
               type: number
               description: Percent chance of precipitation
               example: 68
-        dayLength:
+            unit:
+              type: string
+              example: "%"
+        cloudCover:
           type: object
           properties:
             value:
               type: number
-              description: Hours of daylight
-              example: 12.9
-        sunshineHours:
-          type: object
-          properties:
-            value:
-              type: number
-              example: 7.5
-        weatherIcon:
-          type: object
-          properties:
-            value:
+              example: 69
+            unit:
               type: string
-              example: "rain"
-            displayValue:
-              type: string
-              description: Localized label (translated per the `lang` you send)
-              example: "Rain"
+              example: "%"
 
     HourlyForecastItem:
       type: object
-      description: One hour's forecast, same field-naming convention as DailyForecastItem but with single (not min/max) values.
+      description: |
+        One hour's forecast, same field-naming convention as
+        DailyForecastItem but with single (not min/max/avg) values.
+        airPressure, baroPressure, iconPhrase, precipitationType and
+        precipitationIntensity are only present when the underlying source
+        provides them for that hour. `sourceId` is stripped from this
+        response.
       properties:
+        id:
+          type: string
+          example: "6a6b531a1dba85bcc0bc32cf"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-07-30T13:35:22.900Z"
         timestamp:
           type: string
           format: date-time
           example: "2026-07-31T14:00:00.000Z"
+        locationId:
+          type: string
+          example: "6a6b2fd71dba85590abc1910"
         airTemp:
           type: object
           properties:
             value:
               type: number
               example: 31.2
+            unit:
+              type: string
+              example: "℃"
         airHumidity:
           type: object
           properties:
             value:
               type: number
               example: 64
+            unit:
+              type: string
+              example: "%"
+        airPressure:
+          type: object
+          description: Only present when the source reports it for that hour.
+          properties:
+            value:
+              type: number
+              example: 961.9
+            unit:
+              type: string
+              example: "hPa"
+        baroPressure:
+          type: object
+          description: Only present when the source reports it for that hour.
+          properties:
+            value:
+              type: number
+              example: 996
+            unit:
+              type: string
+              example: "hPa"
+        windSpeed:
+          type: object
+          properties:
+            value:
+              type: number
+              example: 14.2
+            unit:
+              type: string
+              example: "km/hr"
+        windDirection:
+          type: object
+          properties:
+            value:
+              type: string
+              example: "ENE"
         rainFall:
           type: object
           properties:
             value:
               type: number
               example: 3.1
+            unit:
+              type: string
+              example: "mm"
+        weatherIcon:
+          type: object
+          properties:
+            value:
+              type: string
+              example: "Drizzle"
+            displayValue:
+              type: string
+              example: "Drizzle"
+        iconPhrase:
+          type: object
+          description: AccuWeather-sourced phrase; only present when that source is available.
+          properties:
+            value:
+              type: string
+              example: "Mostly cloudy"
+        hasPrecipitation:
+          type: object
+          properties:
+            value:
+              type: boolean
+              example: true
+        precipitationType:
+          type: object
+          description: Only present when the source reports it.
+          properties:
+            value:
+              type: string
+              example: "Rain"
+        precipitationIntensity:
+          type: object
+          description: Only present when the source reports it.
+          properties:
+            value:
+              type: number
+              example: 0
+            unit:
+              type: string
+              example: "mm"
         precipitationProbability:
           type: object
           properties:
             value:
               type: number
               example: 40
-        weatherIcon:
+            unit:
+              type: string
+              example: "%"
+        cloudCover:
           type: object
           properties:
             value:
+              type: number
+              example: 46
+            unit:
               type: string
-              example: "partly_cloudy"
-            displayValue:
-              type: string
-              example: "Partly Cloudy"
+              example: "%"
 
     DeepMetResponse:
       type: object
