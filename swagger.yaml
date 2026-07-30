@@ -161,14 +161,290 @@ paths:
                       statusCode:
                         type: integer
 
+  /locations:
+    post:
+      summary: Register a custom location
+      description: |
+        Registers a lat/lng point under your subscription so you can fetch
+        forecasts for it later by id. Locations are independent of the
+        `/nowcast/*` endpoints, which take coordinates directly.
+
+        The number of locations you can register is limited by your plan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - latitude
+                - longitude
+              properties:
+                name:
+                  type: string
+                  description: Optional friendly name for the location
+                  example: "Warehouse - Nashik"
+                latitude:
+                  type: number
+                  format: float
+                  minimum: -90
+                  maximum: 90
+                  example: 20.0059
+                longitude:
+                  type: number
+                  format: float
+                  minimum: -180
+                  maximum: 180
+                  example: 73.7997
+      responses:
+        '200':
+          description: Location created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeepMetLocation'
+        '403':
+          description: Location limit reached for your plan
+    get:
+      summary: List your registered locations
+      responses:
+        '200':
+          description: Locations for the calling subscription
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeepMetLocation'
+
+  /locations/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Location id (as returned from POST /locations)
+    get:
+      summary: Get a registered location by id
+      responses:
+        '200':
+          description: The location
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeepMetLocation'
+        '404':
+          description: Location not found (or not owned by your subscription)
+    patch:
+      summary: Update a registered location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                latitude:
+                  type: number
+                  format: float
+                  minimum: -90
+                  maximum: 90
+                longitude:
+                  type: number
+                  format: float
+                  minimum: -180
+                  maximum: 180
+      responses:
+        '204':
+          description: Updated
+        '404':
+          description: Location not found (or not owned by your subscription)
+    delete:
+      summary: Delete a registered location
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Location not found (or not owned by your subscription)
+
+  /locations/{id}/forecast:
+    get:
+      summary: Get the daily/hourly forecast for a registered location
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daily and hourly forecast for the location's coordinates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dailyWeatherForecastData:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DailyForecastItem'
+                  hourlyWeatherForecastData:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HourlyForecastItem'
+        '404':
+          description: Location not found (or not owned by your subscription)
+
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: x-api-key
-      
+
   schemas:
+    DeepMetLocation:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "65f1c2a4e4b0c9a1b2c3d4e5"
+        name:
+          type: string
+          example: "Warehouse - Nashik"
+        latitude:
+          type: number
+          example: 20.0059
+        longitude:
+          type: number
+          example: 73.7997
+        subscriptionId:
+          type: string
+          example: "65f1c2a4e4b0c9a1b2c3d4e6"
+
+    DailyForecastItem:
+      type: object
+      description: |
+        One calendar day's forecast. Field set mirrors Fyllo's internal
+        weather service and can vary slightly by location/source coverage.
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-07-31T00:00:00.000Z"
+        airTemp:
+          type: object
+          properties:
+            min:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 24.1
+            max:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 33.4
+        airHumidity:
+          type: object
+          properties:
+            min:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 58
+            max:
+              type: object
+              properties:
+                value:
+                  type: number
+                  example: 87
+        rainFall:
+          type: object
+          properties:
+            value:
+              type: number
+              description: Forecast rainfall in mm
+              example: 12.4
+        precipitationProbability:
+          type: object
+          properties:
+            value:
+              type: number
+              description: Percent chance of precipitation
+              example: 68
+        dayLength:
+          type: object
+          properties:
+            value:
+              type: number
+              description: Hours of daylight
+              example: 12.9
+        sunshineHours:
+          type: object
+          properties:
+            value:
+              type: number
+              example: 7.5
+        weatherIcon:
+          type: object
+          properties:
+            value:
+              type: string
+              example: "rain"
+            displayValue:
+              type: string
+              description: Localized label (translated per the `lang` you send)
+              example: "Rain"
+
+    HourlyForecastItem:
+      type: object
+      description: One hour's forecast, same field-naming convention as DailyForecastItem but with single (not min/max) values.
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-07-31T14:00:00.000Z"
+        airTemp:
+          type: object
+          properties:
+            value:
+              type: number
+              example: 31.2
+        airHumidity:
+          type: object
+          properties:
+            value:
+              type: number
+              example: 64
+        rainFall:
+          type: object
+          properties:
+            value:
+              type: number
+              example: 3.1
+        precipitationProbability:
+          type: object
+          properties:
+            value:
+              type: number
+              example: 40
+        weatherIcon:
+          type: object
+          properties:
+            value:
+              type: string
+              example: "partly_cloudy"
+            displayValue:
+              type: string
+              example: "Partly Cloudy"
+
     DeepMetResponse:
       type: object
       properties:
